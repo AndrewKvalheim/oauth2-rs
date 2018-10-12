@@ -219,6 +219,8 @@ extern crate serde;
 extern crate serde_json;
 extern crate url;
 
+mod compatibility;
+
 use std::io::Read;
 use std::fmt::{Debug, Display, Error as FormatterError, Formatter};
 use std::marker::{Send, Sync, PhantomData};
@@ -1063,7 +1065,13 @@ pub struct TokenResponse<EF: ExtraTokenFields, TT: TokenType> {
     #[serde(bound = "TT: TokenType")]
     #[serde(deserialize_with = "helpers::deserialize_untagged_enum_case_insensitive")]
     token_type: TT,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+
+        // Workaround for https://feedback.azure.com/forums/169401/suggestions/35707591
+        default,
+        deserialize_with = "compatibility::deserialize_option_of_fromstr_or_string"
+    )]
     expires_in: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     refresh_token: Option<RefreshToken>,

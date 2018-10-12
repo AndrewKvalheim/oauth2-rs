@@ -269,6 +269,31 @@ fn test_exchange_code_successful_with_complete_json_response() {
     assert_eq!(token, deserialized_token);
 }
 
+// Azure Active Directory sends a malformed access token response:
+// https://feedback.azure.com/forums/169401/suggestions/35707591
+#[test]
+fn test_exchange_code_successful_with_azure_ad_json_response() {
+    let mock = mock("POST", "/token")
+        .match_header("Accept", "application/json")
+        .match_body("grant_type=authorization_code&code=ccc&client_id=aaa&client_secret=bbb")
+        .with_header("Content-Type", "application/json")
+        .with_body(
+            "{\"token_type\": \"Bearer\", \"expires_in\": \"3599\", \"ext_expires_in\": \"0\", \
+             \"expires_on\": \"1539368752\", \"access_token\": \"ddd\", \"refresh_token\": \"eee\" \
+             }",
+        )
+        .create();
+
+    let client = new_mock_client().set_auth_type(oauth2::AuthType::RequestBody);
+    let token = client
+        .exchange_code(AuthorizationCode::new("ccc".to_string()))
+        .unwrap();
+
+    mock.assert();
+
+    assert_eq!(3599, token.expires_in().unwrap().as_secs());
+}
+
 #[test]
 fn test_exchange_client_credentials_with_basic_auth() {
     let mock = mock("POST", "/token")
